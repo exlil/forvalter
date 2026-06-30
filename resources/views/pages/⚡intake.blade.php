@@ -71,9 +71,19 @@ new #[Layout('layouts::app')] class extends Component
         // Toll drafts get a kjørebok-match preview instead of the normal card.
         $matcher = app(TollMatcher::class);
         $propertyMatcher = app(PropertyMatcher::class);
+        $duplicateFinder = app(\App\Services\DuplicateFinder::class);
         $tollMeta = [];
         $propertyMatch = [];
+        $duplicates = [];
         foreach ($drafts as $a) {
+            if ($dupe = $duplicateFinder->forAnalysis($a)) {
+                $duplicates[$a->id] = [
+                    'reason' => $dupe['reason'],
+                    'date' => $dupe['expense']->date?->format('d.m.Y'),
+                    'property' => $dupe['expense']->property?->name,
+                ];
+            }
+
             $passings = $a->suggested['toll_passings'] ?? [];
             $isToll = ($a->suggested['document_type'] ?? null) === 'bompenger' || ! empty($passings);
             if ($isToll) {
@@ -99,6 +109,7 @@ new #[Layout('layouts::app')] class extends Component
             'confirmed' => $confirmed,
             'tollMeta' => $tollMeta,
             'propertyMatch' => $propertyMatch,
+            'duplicates' => $duplicates,
             'hasPending' => $pending->isNotEmpty(),
         ];
     }
@@ -169,11 +180,21 @@ new #[Layout('layouts::app')] class extends Component
                     $date = ! empty($s['date']) ? Carbon::parse($s['date'])->format('d.m.Y') : null;
                     $confidence = (int) round(((float) ($s['confidence'] ?? $a->confidence ?? 0)) * 100);
                     $toll = $tollMeta[$a->id] ?? null;
+                    $dupe = $duplicates[$a->id] ?? null;
+                @endphp
+
+                @php
+                    $dupeBanner = $dupe
+                        ? '⚠ Mulig dobbel — allerede bokført'.($dupe['date'] ? ' '.$dupe['date'] : '').($dupe['property'] ? ' · '.$dupe['property'] : '').' ('.$dupe['reason'].')'
+                        : null;
                 @endphp
 
                 @if ($toll)
                     {{-- Bompenger draft → kjørebok matching --}}
                     <x-card class="flex flex-col p-5">
+                        @if ($dupeBanner)
+                            <div class="mb-3 rounded-lg border border-negative/30 bg-negative-soft px-3 py-2 text-[12.5px] font-medium text-negative">{{ $dupeBanner }}</div>
+                        @endif
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <div class="flex items-center gap-2">
@@ -218,6 +239,9 @@ new #[Layout('layouts::app')] class extends Component
                 @endif
 
                 <x-card class="flex flex-col p-5">
+                    @if ($dupeBanner)
+                        <div class="mb-3 rounded-lg border border-negative/30 bg-negative-soft px-3 py-2 text-[12.5px] font-medium text-negative">{{ $dupeBanner }}</div>
+                    @endif
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
                             <div class="text-[17px] font-semibold leading-tight">{{ $s['vendor'] ?? 'Ukjent leverandør' }}</div>

@@ -39,6 +39,7 @@ new #[Layout('layouts::app')] class extends Component
     public ?string $aiError = null;
     public ?string $propertyMatchedFrom = null;   // hint text when the eiendom was auto-selected
     public bool $fromInbox = false;                // arrived from the Innboks → return there after booking
+    public ?string $duplicateNote = null;          // set if this bilag looks already-booked
 
     public bool $submitted = false;
     public array $saved = [];
@@ -57,6 +58,14 @@ new #[Layout('layouts::app')] class extends Component
                 if ($analysis->status === AnalysisStatus::Draft && $analysis->suggested) {
                     $this->analysisId = $analysis->id;
                     $this->prefillFrom($analysis);
+
+                    if ($dupe = app(\App\Services\DuplicateFinder::class)->forAnalysis($analysis)) {
+                        $e = $dupe['expense'];
+                        $this->duplicateNote = 'Mulig allerede bokført'
+                            .($e->date ? ' '.$e->date->format('d.m.Y') : '')
+                            .($e->property ? ' · '.$e->property->name : '')
+                            .' ('.$dupe['reason'].')';
+                    }
                 }
                 $this->receipt = 'existing';   // string marker → "Bilag lagt ved" UI
                 $this->fromInbox = true;       // booked → return to the Innboks
@@ -328,6 +337,12 @@ new #[Layout('layouts::app')] class extends Component
     @else
         <form wire:submit="save" class="grid grid-cols-1 gap-6 md:grid-cols-[1.5fr_1fr] md:gap-8">
             <x-card class="p-6 md:p-8">
+                @if ($duplicateNote)
+                    <div class="mb-6 flex items-start gap-2.5 rounded-xl border border-negative/30 bg-negative-soft p-4 text-[13px] text-negative">
+                        <svg width="18" height="18" class="mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+                        <span><span class="font-semibold">{{ $duplicateNote }}.</span> Kontrollér at dette ikke er samme bilag før du bokfører.</span>
+                    </div>
+                @endif
                 @if ($suggestion)
                     <div class="mb-6 rounded-xl border border-terra/20 bg-terra-soft p-4">
                         <div class="flex items-center justify-between">
