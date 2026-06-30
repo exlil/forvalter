@@ -18,6 +18,7 @@ new #[Layout('layouts::app')] class extends Component
     public string $property_id = '';   // '' = Felles (no property)
     public string $distance_km = '';
     public bool $round_trip = false;   // tur/retur → distance counted both ways
+    public string $favoriteLabel = ''; // optional name when saving a favorite
 
     public function mount(): void
     {
@@ -72,6 +73,7 @@ new #[Layout('layouts::app')] class extends Component
 
         $this->property_id = (string) ($fav->property_id ?? '');
         $this->distance_km = (string) $fav->distance_km;
+        $this->round_trip = (bool) $fav->round_trip;
         $this->purpose = $fav->purpose ?? '';
     }
 
@@ -84,14 +86,18 @@ new #[Layout('layouts::app')] class extends Component
         );
 
         $property = $this->property_id ? Property::find($this->property_id) : null;
+        $label = trim($this->favoriteLabel);
 
         TripFavorite::create([
-            'label' => $property?->name ?? ($this->purpose ?: 'Felles tur'),
+            'label' => $label !== '' ? $label : ($property?->name ?? ($this->purpose ?: 'Felles tur')),
             'property_id' => $this->property_id ?: null,
             'distance_km' => (int) $this->distance_km,
+            'round_trip' => $this->round_trip,
             'purpose' => $this->purpose ?: null,
             'created_by' => Auth::id(),
         ]);
+
+        $this->favoriteLabel = '';
     }
 
     public function deleteFavorite(int $id): void
@@ -148,7 +154,7 @@ new #[Layout('layouts::app')] class extends Component
         <div class="flex flex-wrap items-center gap-2">
             @forelse ($favorites as $fav)
                 <span class="inline-flex items-center gap-2 rounded-full border border-line-strong bg-surface py-2 pl-3.5 pr-2.5 text-[13.5px]">
-                    <button type="button" wire:click="useFavorite({{ $fav->id }})" class="font-medium transition-colors hover:text-terra">{{ $fav->label }} · {{ $fav->distance_km }} km</button>
+                    <button type="button" wire:click="useFavorite({{ $fav->id }})" class="font-medium transition-colors hover:text-terra">{{ $fav->label }} · {{ $fav->distance_km }} km @if ($fav->round_trip)<span class="rounded bg-chip px-1 py-0.5 text-[10px] font-semibold text-muted">t/r</span>@endif</button>
                     <button type="button" wire:click="deleteFavorite({{ $fav->id }})" class="text-base leading-none text-faint transition-colors hover:text-terra" title="Fjern favoritt">×</button>
                 </span>
             @empty
@@ -199,7 +205,10 @@ new #[Layout('layouts::app')] class extends Component
                 @if ($round_trip && (int) $distance_km > 0)
                     <span class="text-[12.5px] text-faint">= {{ \App\Support\Format::number((int) $distance_km * 2) }} km tur/retur</span>
                 @endif
-                <button type="button" wire:click="saveFavorite" class="ml-auto text-[13px] font-semibold text-terra transition-opacity hover:opacity-80">★ Lagre som favoritt</button>
+                <div class="ml-auto flex items-center gap-2">
+                    <input wire:model="favoriteLabel" placeholder="Navn på favoritt" class="w-40 rounded-[9px] border border-line-strong bg-surface px-3 py-1.5 text-[13px] outline-none focus:border-terra">
+                    <button type="button" wire:click="saveFavorite" class="whitespace-nowrap text-[13px] font-semibold text-terra transition-opacity hover:opacity-80">★ Lagre</button>
+                </div>
                 @php $err = $errors->first(); @endphp
                 @if ($err) <p class="w-full text-[13px] text-terra">{{ $err }}</p> @endif
             </div>

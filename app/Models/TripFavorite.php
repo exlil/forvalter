@@ -20,6 +20,7 @@ class TripFavorite extends Model
         'label',
         'property_id',
         'distance_km',
+        'round_trip',
         'purpose',
         'created_by',
     ];
@@ -28,6 +29,7 @@ class TripFavorite extends Model
     {
         return [
             'distance_km' => 'integer',
+            'round_trip' => 'boolean',
         ];
     }
 
