@@ -1,58 +1,49 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Forvalter
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Privat verktøy for forvaltning av en utleieportefølje — bygd for én utleier
+(kapitalinntekt, ikke næring). Holder styr på eiendommer, leieforhold og
+husleie, leser bilag med AI, fører kjørebok, og lager underlag for
+skattemeldingen ved årsslutt.
 
-## About Laravel
+## Funksjoner
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Boliger** — eiendommer (frittstående + bygård), enheter, leieforhold med
+  husleie-reskontro (betalt/forfalt per måned), depositum og leietakerbytte.
+- **Innboks (AI-intake)** — slipp et bilag hvor som helst → Claude leser det i
+  bakgrunnen, foreslår beløp/dato/kostnadstype/eiendom → du bekrefter og bokfører.
+- **Kjørebok** — turer med sats per km; bompenger matches mot kjøreboka.
+- **Årsoppgjør** — netto per eiendom gruppert på kostnadstype, 50/50-fordeling,
+  med PDF, regneark og en ZIP med alle bilag som dokumentasjon.
+- **PWA** — installerbar på iPhone (full-skjerm, hjem-skjerm-ikon, splash).
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Stack
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Laravel 13 · Livewire 4 (single-file components) · Tailwind v4 · MySQL/MariaDB ·
+Anthropic Claude (`anthropic-ai/sdk`) · dompdf.
 
-## Learning Laravel
+## Lokalt (DDEV)
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Appen ligger i undermappen `forvalter/`. Kjør app-kommandoer i containeren:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+ddev exec -d /var/www/html/forvalter "composer install"
+ddev exec -d /var/www/html/forvalter "npm install && npm run build"
+ddev exec -d /var/www/html/forvalter "php artisan migrate --seed"
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Krever `ANTHROPIC_API_KEY` i `.env` for ekte AI-analyse (uten nøkkel brukes en
+deterministisk stub).
 
-## Contributing
+## Deploy (Forge)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Auto-deploy fra `main`. Deploy-skriptet må bygge frontend (siden `public/build`
+er git-ignorert):
 
-## Code of Conduct
+```bash
+composer install --no-dev --optimize-autoloader
+npm ci && npm run build
+php artisan migrate --force
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+I server-`.env`: sett `APP_KEY`, database, `ANTHROPIC_API_KEY`. La `SHARE_URL`
+være tom (den er kun for den lokale Bifrost-tunnelen). HTTPS kreves for PWA.
