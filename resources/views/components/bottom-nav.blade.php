@@ -4,7 +4,7 @@
     $tabs = [
         ['route' => 'dashboard', 'match' => ['dashboard'], 'label' => 'Hjem', 'icon' => 'home'],
         ['route' => 'properties.index', 'match' => ['properties.*', 'units.*'], 'label' => 'Boliger', 'icon' => 'building'],
-        ['route' => 'intake', 'match' => ['intake'], 'label' => 'Innboks', 'icon' => 'inboxcircle'],
+        ['route' => 'intake', 'match' => ['intake'], 'label' => 'Innboks', 'icon' => 'inbox'],
         ['route' => 'trips.index', 'match' => ['trips.*'], 'label' => 'Kjøring', 'icon' => 'trip'],
     ];
 @endphp
@@ -21,11 +21,11 @@
                 @case('building')
                     <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
                     @break
-                @case('inboxcircle')
-                    <span class="relative flex size-[23px] items-center justify-center rounded-full bg-terra">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linejoin="round"><path d="M4 13h4l1.5 2.5h5L16 13h4M4 13l2-7h12l2 7M4 13v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/></svg>
+                @case('inbox')
+                    <span class="relative">
+                        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 13h4l1.5 2.5h5L16 13h4M4 13l2-7h12l2 7M4 13v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/></svg>
                         @if ($count)
-                            <span class="absolute -right-1.5 -top-1.5 inline-flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-negative px-1 text-[10px] font-bold leading-none text-white ring-2 ring-surface">{{ $count }}</span>
+                            <span class="absolute -right-2 -top-1.5 inline-flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-negative px-1 text-[10px] font-bold leading-none text-white ring-2 ring-surface">{{ $count }}</span>
                         @endif
                     </span>
                     @break
