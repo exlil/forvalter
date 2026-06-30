@@ -52,7 +52,6 @@ new #[Layout('layouts::guest')] class extends Component
 
     <x-card class="p-8">
         <h1 class="text-2xl font-bold tracking-tight">Logg inn</h1>
-        <p class="mt-1.5 text-sm text-muted">Privat forvaltning av eiendomsporteføljen.</p>
 
         <form wire:submit="login" class="mt-6 space-y-4">
             <div>
