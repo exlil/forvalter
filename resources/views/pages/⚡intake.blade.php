@@ -97,10 +97,11 @@ new #[Layout('layouts::app')] class extends Component
 ?>
 
 <div x-data="{ preview: null }" @if ($hasPending) wire:poll.3s @endif>
-    <div class="flex items-start justify-between gap-4">
+    <div class="mb-6 flex items-start justify-between gap-4 md:mb-8">
         <div>
             <h1 class="text-3xl font-bold tracking-tight md:text-[34px]">Innboks</h1>
-            <p class="mt-1 text-[15px] text-muted">Ta bilde eller last opp et bilag — det leses og forhåndsutfylles automatisk.</p>
+            <p class="mt-1 text-[15px] text-muted md:hidden">Ta bilde eller last opp et bilag — det leses automatisk.</p>
+            <p class="mt-1 hidden text-[15px] text-muted md:block">Slipp et bilag hvor som helst på siden — det leses og forhåndsutfylles automatisk.</p>
         </div>
         @if ($hasPending)
             <span class="mt-1.5 inline-flex shrink-0 items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-[12.5px] font-medium text-muted">
@@ -110,8 +111,8 @@ new #[Layout('layouts::app')] class extends Component
         @endif
     </div>
 
-    {{-- Quick capture (works on mobile — camera + file picker) --}}
-    <div class="mb-8 mt-5 flex flex-col gap-2.5 sm:flex-row">
+    {{-- Quick capture — mobile only (desktop uses drag-and-drop) --}}
+    <div class="mb-8 flex flex-col gap-2.5 sm:flex-row md:hidden">
         <label class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-terra px-4 py-3.5 text-sm font-semibold text-white transition-opacity hover:opacity-90">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg>
             Ta bilde av bilag
