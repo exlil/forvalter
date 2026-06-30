@@ -105,13 +105,11 @@
             {{-- Mobile top bar --}}
             <header class="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-line bg-canvas px-5 md:hidden">
                 <x-brand />
-                <div class="flex items-center gap-4">
-                    <a href="{{ route('intake') }}" aria-label="Innboks"
-                        class="relative {{ request()->routeIs('intake') ? 'text-terra' : 'text-muted' }}">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M4 13h4l1.5 2.5h5L16 13h4M4 13l2-7h12l2 7M4 13v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/></svg>
-                        @if ($intakeCount)
-                            <span class="absolute -right-2 -top-1.5 inline-flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-terra px-1 text-[10px] font-bold leading-none text-white">{{ $intakeCount }}</span>
-                        @endif
+                <div class="flex items-center gap-3.5">
+                    <a href="{{ route('expenses.create') }}" aria-label="Ny utgift"
+                        class="inline-flex items-center gap-1 rounded-full bg-terra px-3 py-1.5 text-[13px] font-semibold text-white">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                        Utgift
                     </a>
                     <a href="{{ route('arsoppgjor') }}" aria-label="Årsoppgjør"
                         class="{{ request()->routeIs('arsoppgjor') ? 'text-terra' : 'text-muted' }}">
