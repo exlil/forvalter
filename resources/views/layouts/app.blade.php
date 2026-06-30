@@ -22,6 +22,12 @@
         <style>[x-cloak]{display:none!important}</style>
     </head>
     <body class="min-h-screen bg-canvas font-sans text-ink antialiased">
+        {{-- Pull-to-refresh indicator (installed iOS PWA only; wired up below) --}}
+        <div id="ptr" aria-hidden="true" style="position:fixed;top:0;left:0;right:0;z-index:40;display:flex;justify-content:center;pointer-events:none;transform:translateY(-46px);">
+            <div id="ptr-ic" style="margin-top:calc(env(safe-area-inset-top) + 8px);height:32px;width:32px;border-radius:9999px;background:#fff;box-shadow:0 2px 10px rgba(22,24,29,.14);display:flex;align-items:center;justify-content:center;color:#2c5ce6;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            </div>
+        </div>
         @php
             $intakeCount = auth()->check()
                 ? \App\Models\DocumentAnalysis::whereIn('status', ['pending', 'draft'])->count()
@@ -134,6 +140,61 @@
                     navigator.serviceWorker.register('/sw.js').catch(() => {});
                 });
             }
+
+            // Pull-to-refresh — only in the installed (standalone) app, where iOS
+            // has no native pull-to-refresh. Drag down from the very top to reload.
+            (function () {
+                const standalone = window.navigator.standalone === true
+                    || window.matchMedia('(display-mode: standalone)').matches;
+                if (!standalone) return;
+
+                const el = document.getElementById('ptr');
+                const ic = document.getElementById('ptr-ic');
+                if (!el || !ic) return;
+
+                const THRESHOLD = 64, MAX = 108, REST = -46;
+                let startY = null, dist = 0, pulling = false;
+                const atTop = () => (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
+
+                // Don't arm while a modal/lightbox overlay is open (avoids a
+                // reload that would discard what you're editing).
+                const overlayOpen = () => [...document.querySelectorAll('.z-50')]
+                    .some((m) => m.offsetParent !== null && m.getBoundingClientRect().height > 60);
+
+                document.addEventListener('touchstart', (e) => {
+                    if (e.touches.length !== 1 || !atTop() || overlayOpen()) { startY = null; return; }
+                    startY = e.touches[0].clientY;
+                    dist = 0; pulling = false;
+                    el.style.transition = 'none';
+                    ic.style.transition = 'none';
+                }, { passive: true });
+
+                document.addEventListener('touchmove', (e) => {
+                    if (startY === null) return;
+                    const dy = e.touches[0].clientY - startY;
+                    if (dy <= 0 || !atTop()) { if (!pulling) startY = null; return; }
+                    pulling = true;
+                    dist = Math.min(dy * 0.5, MAX);
+                    el.style.transform = 'translateY(' + (REST + dist) + 'px)';
+                    ic.style.transform = 'rotate(' + (dist / MAX * 320) + 'deg)';
+                }, { passive: true });
+
+                document.addEventListener('touchend', () => {
+                    if (startY === null) return;
+                    const trigger = pulling && dist >= THRESHOLD;
+                    startY = null; pulling = false;
+                    el.style.transition = 'transform .22s ease';
+                    if (trigger) {
+                        el.style.transform = 'translateY(10px)';
+                        ic.classList.add('ptr-spinning');
+                        setTimeout(() => window.location.reload(), 180);
+                    } else {
+                        el.style.transform = 'translateY(' + REST + 'px)';
+                        ic.style.transition = 'transform .22s ease';
+                        ic.style.transform = 'rotate(0deg)';
+                    }
+                });
+            })();
         </script>
 
         <script>

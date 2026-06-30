@@ -105,6 +105,14 @@ body {
     }
 }
 
+/* Pull-to-refresh spinner (installed PWA) */
+@keyframes ptr-rot {
+    to { transform: rotate(360deg); }
+}
+.ptr-spinning {
+    animation: ptr-rot 0.7s linear infinite;
+}
+
 .font-display {
     font-family: var(--font-display);
 }
