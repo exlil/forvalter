@@ -100,7 +100,7 @@ new #[Layout('layouts::app')] class extends Component
     <div class="flex items-start justify-between gap-4">
         <div>
             <h1 class="text-3xl font-bold tracking-tight md:text-[34px]">Innboks</h1>
-            <p class="mb-8 mt-1 text-[15px] text-muted">Slipp et bilag hvor som helst på siden — det leses og forhåndsutfylles automatisk.</p>
+            <p class="mt-1 text-[15px] text-muted">Ta bilde eller last opp et bilag — det leses og forhåndsutfylles automatisk.</p>
         </div>
         @if ($hasPending)
             <span class="mt-1.5 inline-flex shrink-0 items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-[12.5px] font-medium text-muted">
@@ -108,6 +108,20 @@ new #[Layout('layouts::app')] class extends Component
                 {{ $pending->count() }} behandles
             </span>
         @endif
+    </div>
+
+    {{-- Quick capture (works on mobile — camera + file picker) --}}
+    <div class="mb-8 mt-5 flex flex-col gap-2.5 sm:flex-row">
+        <label class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-terra px-4 py-3.5 text-sm font-semibold text-white transition-opacity hover:opacity-90">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            Ta bilde av bilag
+            <input type="file" accept="image/*" capture="environment" class="hidden" @change="upload([...$event.target.files]); $event.target.value = ''">
+        </label>
+        <label class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-surface px-4 py-3.5 text-sm font-semibold transition-colors hover:border-faint">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15V8a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"/><path d="M12 11v6M9 14h6"/></svg>
+            Velg bilde eller PDF
+            <input type="file" accept="image/*,application/pdf" multiple class="hidden" @change="upload([...$event.target.files]); $event.target.value = ''">
+        </label>
     </div>
 
     {{-- Behandles — being read by the AI right now --}}

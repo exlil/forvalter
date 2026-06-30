@@ -11,6 +11,77 @@ use Livewire\Component;
 
 new #[Layout('layouts::app')] class extends Component
 {
+    public bool $creating = false;
+    public string $c_name = '', $c_address = '', $c_postal = '', $c_city = 'Bergen';
+    public string $c_kind = 'standalone';          // 'standalone' | 'building'
+    public string $c_units = '4';                  // bygård unit count
+    public string $c_type = '';                    // frittstående unit type
+    public string $c_purchase_date = '', $c_purchase_price = '';
+
+    public function openCreate(): void
+    {
+        $this->reset(['c_name', 'c_address', 'c_postal', 'c_kind', 'c_units', 'c_type', 'c_purchase_date', 'c_purchase_price']);
+        $this->c_city = 'Bergen';
+        $this->c_kind = 'standalone';
+        $this->c_units = '4';
+        $this->resetValidation();
+        $this->creating = true;
+    }
+
+    public function closeCreate(): void
+    {
+        $this->creating = false;
+    }
+
+    public function saveProperty()
+    {
+        $this->validate([
+            'c_name' => ['required', 'string', 'max:255'],
+            'c_address' => ['nullable', 'string', 'max:255'],
+            'c_postal' => ['nullable', 'string', 'max:12'],
+            'c_city' => ['nullable', 'string', 'max:120'],
+            'c_kind' => ['required', 'in:standalone,building'],
+            'c_units' => ['nullable', 'integer', 'min:2', 'max:50', 'required_if:c_kind,building'],
+            'c_type' => ['nullable', 'string', 'max:50'],
+            'c_purchase_date' => ['nullable', 'date'],
+            'c_purchase_price' => ['nullable', 'string'],
+        ], [
+            'c_name.required' => 'Eiendommen må ha et navn.',
+            'c_units.required_if' => 'Oppgi antall enheter for en bygård.',
+        ]);
+
+        $property = Property::create([
+            'name' => $this->c_name,
+            'address' => $this->c_address ?: $this->c_name,
+            'postal_code' => $this->c_postal ?: null,
+            'city' => $this->c_city ?: null,
+            'property_type' => $this->c_kind === 'building' ? 'Bygård' : 'Leilighet',
+            'purchase_date' => $this->c_purchase_date ?: null,
+            'purchase_price_ore' => $this->c_purchase_price !== '' ? Money::fromKronerString($this->c_purchase_price)->ore : null,
+        ]);
+
+        if ($this->c_kind === 'building') {
+            $n = (int) $this->c_units;
+            for ($i = 1; $i <= $n; $i++) {
+                Unit::create([
+                    'property_id' => $property->id,
+                    'name' => 'Leil. '.$i,
+                    'code' => sprintf('H0%d01', $i),
+                ]);
+            }
+
+            return $this->redirect(route('properties.show', $property), navigate: true);
+        }
+
+        $unit = Unit::create([
+            'property_id' => $property->id,
+            'name' => $this->c_name,
+            'unit_type' => $this->c_type ?: null,
+        ]);
+
+        return $this->redirect(route('units.show', $unit), navigate: true);
+    }
+
     public function with(): array
     {
         $year = (int) (Income::max('period_year') ?? now()->year);
@@ -71,7 +142,7 @@ new #[Layout('layouts::app')] class extends Component
 @php
     $dotClass = fn (UnitStatus $s) => match ($s) {
         UnitStatus::Rented => 'bg-positive',
-        UnitStatus::Arrears => 'bg-terra',
+        UnitStatus::Arrears => 'bg-negative',
         UnitStatus::Vacant => 'bg-vacant',
     };
 @endphp
@@ -82,7 +153,7 @@ new #[Layout('layouts::app')] class extends Component
             <h1 class="text-[34px] font-bold tracking-tight">Boliger</h1>
             <p class="mt-1.5 text-[15px] text-muted">{{ $subtitle }}</p>
         </div>
-        <button type="button" class="rounded-[10px] border border-line-strong bg-surface px-4 py-2.5 text-sm font-semibold">+ Legg til eiendom</button>
+        <button type="button" wire:click="openCreate" class="rounded-[10px] border border-line-strong bg-surface px-4 py-2.5 text-sm font-semibold transition-colors hover:border-faint">+ Legg til eiendom</button>
     </div>
 
     {{-- Bygårder --}}
@@ -144,6 +215,100 @@ new #[Layout('layouts::app')] class extends Component
                     </div>
                 </a>
             @endforeach
+        </div>
+    @endif
+
+    {{-- Add property modal --}}
+    @if ($creating)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-[2px]"
+            wire:click.self="closeCreate" wire:keydown.escape="closeCreate">
+            <div class="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl">
+                <div class="flex items-center justify-between border-b border-line px-6 py-4">
+                    <div class="text-lg font-semibold">Legg til eiendom</div>
+                    <button type="button" wire:click="closeCreate" class="text-xl leading-none text-faint hover:text-ink" aria-label="Lukk">&times;</button>
+                </div>
+
+                <form wire:submit="saveProperty" class="flex min-h-0 flex-1 flex-col">
+                    <div class="grid grid-cols-1 gap-4 overflow-y-auto overflow-x-hidden px-6 py-5 sm:grid-cols-2">
+                        {{-- Type --}}
+                        <div class="sm:col-span-2">
+                            <label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Type</label>
+                            <div class="grid grid-cols-2 gap-2.5">
+                                <button type="button" wire:click="$set('c_kind', 'standalone')" @class([
+                                    'rounded-xl border p-3 text-left transition-colors',
+                                    'border-terra bg-terra-soft' => $c_kind === 'standalone',
+                                    'border-line-strong bg-surface hover:border-faint' => $c_kind !== 'standalone',
+                                ])>
+                                    <div class="text-sm font-semibold {{ $c_kind === 'standalone' ? 'text-terra' : 'text-ink' }}">Frittstående</div>
+                                    <div class="mt-0.5 text-[11.5px] text-faint">Én enhet</div>
+                                </button>
+                                <button type="button" wire:click="$set('c_kind', 'building')" @class([
+                                    'rounded-xl border p-3 text-left transition-colors',
+                                    'border-terra bg-terra-soft' => $c_kind === 'building',
+                                    'border-line-strong bg-surface hover:border-faint' => $c_kind !== 'building',
+                                ])>
+                                    <div class="text-sm font-semibold {{ $c_kind === 'building' ? 'text-terra' : 'text-ink' }}">Bygård</div>
+                                    <div class="mt-0.5 text-[11.5px] text-faint">Flere enheter</div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="sm:col-span-2">
+                            <label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Navn</label>
+                            <input wire:model="c_name" placeholder="F.eks. Blekenberg 36" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                            @error('c_name') <p class="mt-1 text-[13px] text-negative">{{ $message }}</p> @enderror
+                        </div>
+
+                        @if ($c_kind === 'building')
+                            <div>
+                                <label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Antall enheter</label>
+                                <input wire:model="c_units" inputmode="numeric" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                                @error('c_units') <p class="mt-1 text-[13px] text-negative">{{ $message }}</p> @enderror
+                            </div>
+                        @else
+                            <div>
+                                <label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Boligtype</label>
+                                <input wire:model="c_type" placeholder="F.eks. 3-roms" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                            </div>
+                        @endif
+
+                        <div>
+                            <label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Adresse</label>
+                            <input wire:model="c_address" placeholder="(samme som navn)" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Postnr.</label>
+                            <input wire:model="c_postal" inputmode="numeric" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Poststed</label>
+                            <input wire:model="c_city" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                        </div>
+
+                        <div class="sm:col-span-2 mt-1 border-t border-line pt-4 text-[13px] uppercase tracking-[0.08em] text-faint">Kjøp (valgfritt)</div>
+                        <div>
+                            <label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Kjøpsdato</label>
+                            <input wire:model="c_purchase_date" type="date" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                        </div>
+                        <div>
+                            <label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Kjøpesum (kr)</label>
+                            <input wire:model="c_purchase_price" inputmode="numeric" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                        </div>
+                        <p class="sm:col-span-2 text-[12.5px] text-faint">
+                            @if ($c_kind === 'building')
+                                Enhetene opprettes som «Leil. 1…». Du legger til leietaker og leie på hver enhet etterpå.
+                            @else
+                                Enheten opprettes som ledig — legg til leietaker og leie på enhetssiden etterpå.
+                            @endif
+                        </p>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2.5 border-t border-line px-6 py-4">
+                        <button type="button" wire:click="closeCreate" class="rounded-[10px] border border-line-strong bg-surface px-4 py-2.5 text-sm font-semibold hover:border-faint">Avbryt</button>
+                        <button type="submit" wire:loading.attr="disabled" wire:target="saveProperty" class="rounded-[10px] bg-terra px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60">Opprett</button>
+                    </div>
+                </form>
+            </div>
         </div>
     @endif
 </div>

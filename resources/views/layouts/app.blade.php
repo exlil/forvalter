@@ -224,10 +224,14 @@
                             || /^image\/(jpeg|png)$/.test(f.type)
                             || /\.(pdf|jpe?g|png)$/i.test(f.name);
                     },
-                    async onDrop(e) {
+                    onDrop(e) {
                         this.depth = 0;
                         this.dragging = false;
-                        const files = Array.from(e.dataTransfer?.files || []).filter(f => this.accepted(f));
+                        this.upload(Array.from(e.dataTransfer?.files || []));
+                    },
+                    // Shared by drag-drop AND the mobile "snap / upload" file inputs.
+                    async upload(fileList) {
+                        const files = Array.from(fileList || []).filter(f => this.accepted(f));
                         if (!files.length) return;
 
                         const fd = new FormData();

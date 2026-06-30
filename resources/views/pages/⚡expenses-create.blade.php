@@ -415,12 +415,19 @@ new #[Layout('layouts::app')] class extends Component
                 {{-- Kvittering + AI --}}
                 <label class="mt-6 block text-[13px] font-semibold text-ink-soft">Kvittering (bilag)</label>
                 @if (! $receipt)
-                    <label class="mt-2 block cursor-pointer rounded-xl border-[1.5px] border-dashed border-line-strong bg-panel p-6 text-center transition-colors hover:border-faint">
-                        <input type="file" wire:model="receipt" class="hidden" accept=".pdf,.jpg,.jpeg,.png">
-                        <div wire:loading.remove wire:target="receipt" class="text-[15px] font-semibold text-muted">Klikk for å laste opp kvittering</div>
-                        <div wire:loading.remove wire:target="receipt" class="mt-1 text-[13px] text-faint">PDF, JPG eller PNG · maks 10 MB</div>
-                        <div wire:loading wire:target="receipt" class="text-[15px] font-semibold text-muted">Laster opp …</div>
-                    </label>
+                    <div wire:loading.remove wire:target="receipt" class="mt-2 flex flex-col gap-2.5 sm:flex-row">
+                        <label class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-line-strong bg-panel px-4 py-4 text-sm font-semibold text-ink-soft transition-colors hover:border-faint">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg>
+                            Ta bilde
+                            <input type="file" wire:model="receipt" accept="image/*" capture="environment" class="hidden">
+                        </label>
+                        <label class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-line-strong bg-panel px-4 py-4 text-sm font-semibold text-ink-soft transition-colors hover:border-faint">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15V8a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"/></svg>
+                            Velg bilde eller PDF
+                            <input type="file" wire:model="receipt" accept="image/*,application/pdf" class="hidden">
+                        </label>
+                    </div>
+                    <div wire:loading.flex wire:target="receipt" class="mt-2 items-center justify-center rounded-xl border border-line bg-panel px-4 py-4 text-sm font-semibold text-muted">Laster opp bilde …</div>
                 @else
                     <div class="mt-2 rounded-xl border border-line bg-panel p-4">
                         <div class="flex items-center justify-between">
