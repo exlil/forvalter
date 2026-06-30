@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Offline · Forvalter</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #ffffff; color: #16181d; padding: 24px; }
+        .card { max-width: 360px; text-align: center; }
+        .logo { width: 52px; height: 52px; border-radius: 14px; background: #2c5ce6; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 22px; }
+        h1 { font-size: 20px; margin: 0 0 8px; letter-spacing: -.01em; }
+        p { font-size: 15px; line-height: 1.5; color: #6b7280; margin: 0 0 22px; }
+        button { font: inherit; font-size: 15px; font-weight: 600; color: #fff; background: #2c5ce6; border: 0; border-radius: 10px; padding: 12px 22px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <span class="logo">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+        </span>
+        <h1>Du er offline</h1>
+        <p>Forvalter trenger nett for å hente og lagre data. Sjekk tilkoblingen og prøv igjen.</p>
+        <button onclick="location.reload()">Prøv igjen</button>
+    </div>
+</body>
+</html>

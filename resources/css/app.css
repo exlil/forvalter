@@ -1,0 +1,114 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views';
+
+/*
+ | Forvalter design tokens — "Blå · Modern" (design-handoff-3): clean white canvas,
+ | a confident blue accent, Schibsted Grotesk for display/numbers + Hanken Grotesk
+ | for body, a dark hero surface, cool neutral greys.
+ |
+ | Colour roles: blue (terra token) = brand + primary actions + AI · green = positive
+ | money · red = negative/overdue · ink/greys = text & structure.
+ */
+@theme {
+    --font-sans: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display: 'Schibsted Grotesk', 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+
+    --color-canvas: #ffffff;
+    --color-canvas-alt: #f5f7fc;
+    --color-surface: #ffffff;
+
+    /* dark hero surface */
+    --color-night: #14161b;
+    --color-night-soft: #eef1f6;
+    --color-night-muted: #9097a6;
+
+    --color-ink: #16181d;
+    --color-ink-soft: #4b5563;
+    --color-muted: #6b7280;
+    --color-faint: #9aa0ab;
+    --color-line: rgba(0, 0, 0, 0.07);
+    --color-line-strong: rgba(0, 0, 0, 0.14);
+
+    /* "terra" token name kept for compatibility — value is now the brand blue */
+    --color-terra: #2c5ce6;
+    --color-terra-soft: #eef2fe;
+    --color-terra-strong: #1f47bf;
+
+    /* neutral cool surfaces / pills */
+    --color-panel: #f5f7fc;
+    --color-panel-line: #e6eaf3;
+    --color-chip: #eef1f6;
+
+    --color-positive: #0e9f6e;
+    --color-positive-strong: #0b7d55;
+    --color-positive-soft: #e4f5ee;
+    --color-positive-line: #bfe6d2;
+
+    --color-negative: #d64545;
+    --color-negative-soft: #fbe7e7;
+
+    --color-vacant: #aeb4bf;
+    --color-vacant-soft: #eef1f6;
+
+    /* legacy aliases (older markup referenced teal) → fold into blue */
+    --color-teal: #2c5ce6;
+    --color-teal-soft: #eef2fe;
+    --color-teal-line: #c9d6f8;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #aeb4bf;
+}
+
+/*
+ | Let form controls shrink to their container. Without this, date/number inputs
+ | keep an intrinsic min-width and can push a grid/flex layout (e.g. modals on a
+ | narrow phone) wider than the screen, causing a stray horizontal scroll.
+ */
+input,
+select,
+textarea {
+    min-width: 0;
+}
+
+/*
+ | iOS Safari auto-zooms when you focus an input whose font-size is < 16px.
+ | Force 16px on form controls on small screens so tapping a field doesn't zoom
+ | the page; desktop keeps the design's smaller field text.
+ */
+@media (max-width: 767px) {
+    input:not([type='checkbox']):not([type='radio']),
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}
+
+/*
+ | iOS standalone (home-screen) polish: no grey tap-flash, no rubber-band
+ | overscroll revealing white, and respect the notch. The bottom tab bar handles
+ | the home-indicator inset itself via env(safe-area-inset-bottom).
+ */
+body {
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+}
+
+@supports (padding: env(safe-area-inset-top)) {
+    .pwa-safe-top {
+        padding-top: env(safe-area-inset-top);
+    }
+}
+
+.font-display {
+    font-family: var(--font-display);
+}
+
+.tnum {
+    font-variant-numeric: tabular-nums;
+}

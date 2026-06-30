@@ -1,0 +1,32 @@
+{
+    "name": "Forvalter",
+    "short_name": "Forvalter",
+    "description": "Privat forvaltning av eiendomsporteføljen — utgifter og kjørebok.",
+    "lang": "nb",
+    "start_url": "/oversikt",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#ffffff",
+    "theme_color": "#ffffff",
+    "icons": [
+        { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+        { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    ],
+    "shortcuts": [
+        {
+            "name": "Ny utgift",
+            "short_name": "Utgift",
+            "description": "Registrer en ny utgift",
+            "url": "/registrer-utgift",
+            "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+        },
+        {
+            "name": "Ny kjøring",
+            "short_name": "Kjøring",
+            "description": "Åpne kjøreboka",
+            "url": "/kjorebok",
+            "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+        }
+    ]
+}
