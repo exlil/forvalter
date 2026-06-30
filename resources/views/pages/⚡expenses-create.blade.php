@@ -38,6 +38,7 @@ new #[Layout('layouts::app')] class extends Component
     public ?array $suggestion = null;
     public ?string $aiError = null;
     public ?string $propertyMatchedFrom = null;   // hint text when the eiendom was auto-selected
+    public bool $fromInbox = false;                // arrived from the Innboks → return there after booking
 
     public bool $submitted = false;
     public array $saved = [];
@@ -58,6 +59,7 @@ new #[Layout('layouts::app')] class extends Component
                     $this->prefillFrom($analysis);
                 }
                 $this->receipt = 'existing';   // string marker → "Bilag lagt ved" UI
+                $this->fromInbox = true;       // booked → return to the Innboks
             }
         }
     }
@@ -172,7 +174,7 @@ new #[Layout('layouts::app')] class extends Component
         ];
     }
 
-    public function save(): void
+    public function save()
     {
         $rules = [
             'property_id' => ['required', 'integer', 'exists:properties,id'],
@@ -227,6 +229,14 @@ new #[Layout('layouts::app')] class extends Component
                 'confirmed_expense_id' => $expense->id,
                 'confirmed_at' => now(),
             ]);
+        }
+
+        // From the Innboks: go back there with a confirmation so the next bilag
+        // can be processed — no dead-end success screen.
+        if ($this->fromInbox) {
+            session()->flash('status', $money->format().' · '.ExpenseType::from($this->type)->label().' · '.$this->gjelderText($property, $unitId).' er bokført ✓');
+
+            return $this->redirect(route('intake'), navigate: true);
         }
 
         $this->saved = [

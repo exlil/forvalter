@@ -14,6 +14,15 @@ use Livewire\Component;
 
 new #[Layout('layouts::app')] class extends Component
 {
+    /** One-off confirmation (e.g. after booking from a draft); held in a property
+     *  so wire:poll re-renders don't wipe it like a consumed session flash would. */
+    public ?string $booked = null;
+
+    public function mount(): void
+    {
+        $this->booked = session('status');
+    }
+
     /** Discard a draft — kept as Forkastet for history, never hard-deleted. */
     public function discard(int $id): void
     {
@@ -97,6 +106,15 @@ new #[Layout('layouts::app')] class extends Component
 ?>
 
 <div x-data="{ preview: null }" @if ($hasPending) wire:poll.3s @endif>
+    @if ($booked)
+        <div wire:ignore x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 6000)" x-transition
+            class="mb-5 flex items-center gap-2.5 rounded-xl border border-positive-line bg-positive-soft px-4 py-3 text-[14px] font-medium text-positive-strong">
+            <svg width="18" height="18" class="shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <span>{{ $booked }}</span>
+            <button type="button" @click="show = false" class="ml-auto text-lg leading-none text-positive-strong/60 hover:text-positive-strong" aria-label="Lukk">&times;</button>
+        </div>
+    @endif
+
     <div class="mb-6 flex items-start justify-between gap-4 md:mb-8">
         <div>
             <h1 class="text-3xl font-bold tracking-tight md:text-[34px]">Innboks</h1>
