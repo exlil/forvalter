@@ -26,6 +26,7 @@ class Trip extends Model
         'date',
         'purpose',
         'distance_km',
+        'round_trip',
         'rate_ore_per_km',
         'deduction_ore',
         'source',
@@ -39,6 +40,7 @@ class Trip extends Model
         return [
             'date' => 'date',
             'distance_km' => 'integer',
+            'round_trip' => 'boolean',
             'rate_ore_per_km' => 'integer',
             'deduction_ore' => MoneyCast::class,
             'source' => TripSource::class,

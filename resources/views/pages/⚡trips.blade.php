@@ -17,6 +17,7 @@ new #[Layout('layouts::app')] class extends Component
     public string $purpose = '';
     public string $property_id = '';   // '' = Felles (no property)
     public string $distance_km = '';
+    public bool $round_trip = false;   // tur/retur → distance counted both ways
 
     public function mount(): void
     {
@@ -40,11 +41,16 @@ new #[Layout('layouts::app')] class extends Component
 
         $year = (int) date('Y', strtotime($this->date));
 
+        // distance_km stores the FULL distance driven; tur/retur doubles the leg
+        // the user entered (so the deduction and km totals stay simple sums).
+        $km = (int) $this->distance_km * ($this->round_trip ? 2 : 1);
+
         Trip::create([
             'property_id' => $this->property_id ?: null,
             'date' => $this->date,
             'purpose' => $this->purpose,
-            'distance_km' => (int) $this->distance_km,
+            'distance_km' => $km,
+            'round_trip' => $this->round_trip,
             // Rate is snapshotted from the income year's tax settings; the model's
             // saving hook derives income_year and deduction_ore (km × rate).
             'rate_ore_per_km' => TaxYearSetting::forYear($year)->mileage_rate_ore_per_km,
@@ -52,7 +58,7 @@ new #[Layout('layouts::app')] class extends Component
             'created_by' => Auth::id(),
         ]);
 
-        $this->reset(['purpose', 'property_id', 'distance_km']);
+        $this->reset(['purpose', 'property_id', 'distance_km', 'round_trip']);
         $this->date = now()->format('Y-m-d');
     }
 
@@ -181,10 +187,21 @@ new #[Layout('layouts::app')] class extends Component
                     + Legg til
                 </button>
             </div>
-            <div class="mt-3 flex items-center gap-4">
-                <button type="button" wire:click="saveFavorite" class="text-[13px] font-semibold text-terra transition-opacity hover:opacity-80">★ Lagre som favoritt</button>
+            <div class="mt-3.5 flex flex-wrap items-center gap-3">
+                <button type="button" wire:click="$toggle('round_trip')" @class([
+                    'inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors',
+                    'border-terra bg-terra-soft text-terra' => $round_trip,
+                    'border-line-strong text-muted hover:border-faint' => ! $round_trip,
+                ])>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+                    Tur/retur ×2
+                </button>
+                @if ($round_trip && (int) $distance_km > 0)
+                    <span class="text-[12.5px] text-faint">= {{ \App\Support\Format::number((int) $distance_km * 2) }} km tur/retur</span>
+                @endif
+                <button type="button" wire:click="saveFavorite" class="ml-auto text-[13px] font-semibold text-terra transition-opacity hover:opacity-80">★ Lagre som favoritt</button>
                 @php $err = $errors->first(); @endphp
-                @if ($err) <p class="text-[13px] text-terra">{{ $err }}</p> @endif
+                @if ($err) <p class="w-full text-[13px] text-terra">{{ $err }}</p> @endif
             </div>
         </x-card>
     </form>
@@ -200,7 +217,10 @@ new #[Layout('layouts::app')] class extends Component
                 </div>
                 <div class="flex items-center gap-4">
                     <div class="text-right">
-                        <div class="text-[15px] font-semibold">{{ \App\Support\Format::number($trip->distance_km) }} km</div>
+                        <div class="text-[15px] font-semibold">
+                            {{ \App\Support\Format::number($trip->distance_km) }} km
+                            @if ($trip->round_trip)<span class="ml-0.5 rounded bg-chip px-1.5 py-0.5 align-middle text-[10px] font-semibold text-muted">t/r</span>@endif
+                        </div>
                         <div class="mt-0.5 text-xs text-positive">{{ $trip->deduction_ore->format() }}</div>
                     </div>
                     <button type="button" wire:click="deleteTrip({{ $trip->id }})"
