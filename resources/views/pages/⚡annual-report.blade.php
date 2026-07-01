@@ -35,7 +35,7 @@ new #[Layout('layouts::app')] class extends Component
 };
 ?>
 
-@php $fmt = fn ($m) => $m->format(decimals: true); $t = $r['totals']; $doc = $r['documentation']; @endphp
+@php $fmt = fn ($m) => $m->format(decimals: true); $fmtWhole = fn ($m) => $m->format(); $t = $r['totals']; $doc = $r['documentation']; @endphp
 
 <div>
     <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -72,10 +72,10 @@ new #[Layout('layouts::app')] class extends Component
 
     {{-- Summary --}}
     <div class="mt-7 grid grid-cols-2 border-y border-line md:grid-cols-4">
-        <x-stat class="py-5 md:py-6" label="Leieinntekt {{ $year }}" :value="$fmt($t['income'])" />
-        <x-stat class="py-5 md:border-l md:border-line md:py-6 md:pl-[30px]" label="Sum fradrag" :value="$fmt($t['deductible'])" />
-        <x-stat class="border-t border-line py-5 md:border-l md:border-t-0 md:py-6 md:pl-[30px]" label="Netto resultat" tone="{{ $t['net']->ore >= 0 ? 'positive' : 'default' }}" :value="$fmt($t['net'])" />
-        <x-stat class="border-t border-line py-5 md:border-l md:border-t-0 md:py-6 md:pl-[30px]" label="Per eier (50 %)" tone="teal" :value="$fmt($t['per_owner'])" />
+        <x-stat class="py-5 md:py-6" label="Leieinntekt {{ $year }}" :value="$fmtWhole($t['income'])" />
+        <x-stat class="py-5 md:border-l md:border-line md:py-6 md:pl-[30px]" label="Sum fradrag" :value="$fmtWhole($t['deductible'])" />
+        <x-stat class="border-t border-line py-5 md:border-l md:border-t-0 md:py-6 md:pl-[30px]" label="Netto resultat" tone="{{ $t['net']->ore >= 0 ? 'positive' : 'default' }}" :value="$fmtWhole($t['net'])" />
+        <x-stat class="border-t border-line py-5 md:border-l md:border-t-0 md:py-6 md:pl-[30px]" label="Per eier (50 %)" tone="teal" :value="$fmtWhole($t['per_owner'])" />
     </div>
 
     {{-- Documentation status --}}
@@ -100,14 +100,14 @@ new #[Layout('layouts::app')] class extends Component
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
         @foreach ($r['properties'] as $p)
             <x-card class="flex flex-col p-5 md:p-6">
-                <div class="flex items-start justify-between">
-                    <div>
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
                         <div class="text-[17px] font-semibold">{{ $p['name'] }}</div>
                         <div class="mt-0.5 text-[12.5px] text-faint">{{ $p['is_building'] ? 'Bygård' : 'Frittstående' }}</div>
                     </div>
-                    <div class="text-right">
+                    <div class="shrink-0 text-right">
                         <div class="text-[11.5px] uppercase tracking-[0.06em] text-faint">Netto</div>
-                        <div class="text-xl font-bold {{ $p['net']->ore >= 0 ? 'text-positive' : 'text-terra' }}">{{ $fmt($p['net']) }}</div>
+                        <div class="tnum whitespace-nowrap text-xl font-bold {{ $p['net']->ore >= 0 ? 'text-positive' : 'text-terra' }}">{{ $fmt($p['net']) }}</div>
                     </div>
                 </div>
 
