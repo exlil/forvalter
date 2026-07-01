@@ -545,10 +545,10 @@ new #[Layout('layouts::app')] class extends Component
                 @php($e = $row['expense'])
                 @php($ai = $e->analysis?->suggested ?? null)
                 <div x-data="{ open: false }" class="border-b border-line">
-                    <button type="button" @click="open = !open" class="flex w-full items-center justify-between py-[15px] text-left">
-                        <div class="flex items-start gap-3.5">
+                    <button type="button" @click="open = !open" class="flex w-full items-center justify-between gap-3 py-[15px] text-left">
+                        <div class="flex min-w-0 items-start gap-3.5">
                             <span class="mt-1.5 size-2 shrink-0 rounded-full bg-terra"></span>
-                            <div>
+                            <div class="min-w-0">
                                 <div class="text-[15px] font-medium">{{ $e->description ?: ($e->vendor ?: ($e->category ?: $e->type->label())) }}</div>
                                 <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-faint">
                                     <span>{{ \App\Support\Format::dateLong($e->date) }}</span>
@@ -563,8 +563,8 @@ new #[Layout('layouts::app')] class extends Component
                                 </div>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2.5">
-                            <div class="text-[15px] font-semibold text-ink">{{ $e->amount_ore->negate()->format() }}</div>
+                        <div class="flex shrink-0 items-center gap-2.5">
+                            <div class="tnum whitespace-nowrap text-[15px] font-semibold text-ink">{{ $e->amount_ore->negate()->format() }}</div>
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-faint transition-transform" ::class="open && 'rotate-180'"><path d="M6 9l6 6 6-6"/></svg>
                         </div>
                     </button>

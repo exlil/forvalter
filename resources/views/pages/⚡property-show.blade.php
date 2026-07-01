@@ -103,8 +103,8 @@ new #[Layout('layouts::app')] class extends Component
             <div class="mb-2 text-[13px] uppercase tracking-[0.08em] text-faint">Felleskostnader · mnd</div>
             <x-card class="px-[22px] py-1">
                 @forelse ($felleslines as $line)
-                    <div class="flex items-start justify-between border-b border-line py-3 text-sm">
-                        <div>
+                    <div class="flex items-start justify-between gap-3 border-b border-line py-3 text-sm">
+                        <div class="min-w-0">
                             <div class="text-ink-soft">{{ $line->description ?? $line->category }}</div>
                             <div class="mt-0.5 flex items-center gap-2 text-[11.5px] text-faint">
                                 <span class="rounded-full bg-teal-soft px-1.5 py-0.5 font-medium text-teal">{{ $line->type->label() }}</span>
@@ -116,7 +116,7 @@ new #[Layout('layouts::app')] class extends Component
                                 @endif
                             </div>
                         </div>
-                        <span class="font-semibold">{{ $line->amount_ore->format() }}</span>
+                        <span class="tnum shrink-0 whitespace-nowrap font-semibold">{{ $line->amount_ore->format() }}</span>
                     </div>
                 @empty
                     <div class="py-3.5 text-sm text-muted">Ingen felleskostnader registrert denne måneden.</div>

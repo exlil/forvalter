@@ -358,11 +358,11 @@ new #[Layout('layouts::app')] class extends Component
                         @if ($a->confirmed_at) · {{ $a->confirmed_at->format('d.m.Y') }} @endif
                     </div>
                 </div>
-                <div class="flex items-center gap-3 text-right">
+                <div class="flex shrink-0 items-center gap-3 text-right">
                     @if ($a->confirmedExpense)
-                        <div class="text-[14.5px] font-semibold">{{ $a->confirmedExpense->amount_ore->format() }}</div>
+                        <div class="tnum whitespace-nowrap text-[14.5px] font-semibold">{{ $a->confirmedExpense->amount_ore->format() }}</div>
                     @endif
-                    <span class="rounded-full bg-positive-soft px-2.5 py-1 text-[11.5px] font-semibold text-positive-strong">Bokført ✓</span>
+                    <span class="shrink-0 rounded-full bg-positive-soft px-2.5 py-1 text-[11.5px] font-semibold text-positive-strong">Bokført ✓</span>
                 </div>
             </div>
         @endforeach
