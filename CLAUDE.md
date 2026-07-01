@@ -95,7 +95,14 @@ whole app (every view uses `text-ink`/`bg-terra`/`text-positive`/`border-line`).
   never split to units.
 - **Tenant** (name/email/phone) ←→ **Tenancy** (starts_on/ends_on/monthly_rent_ore/
   deposit_ore) → **Income** (rent per unit per month; `received_on` = paid date, null =
-  outstanding; deposits are NOT income).
+  outstanding; deposits are NOT income). **Rent history lives per-month in Income** (each
+  row has its own `amount_ore`); the tenancy holds only the *current* rate. There is
+  deliberately **no rent-regulation machinery** (user rejected notices/KPI/history-table).
+  The unit page (`⚡unit-show`) is the rent hub: a **year switcher**, **"Generér husleie
+  for {year}"** at a per-year rate (+ "marker betalt" to backfill a past year), **per-month
+  amount/date editing** (pencil on paid rows, "Registrer" on unpaid; blank date = utestående),
+  and **"Legg til tidligere leieforhold"** to record a prior tenant + backfill their received
+  rent — all without disturbing the current lease (`currentTenancy` = latest `starts_on`).
 - **Expense** — `type` (ExpenseType) is the tax axis; `category` is descriptive. Saving
   hook sets `income_year` from date. Soft-deletes.
 - **ExpenseType** enum: Maintenance/Operating/Finance (deductible now) · Improvement

@@ -16,7 +16,7 @@ new #[Layout('layouts::app')] class extends Component
     public Unit $unit;
     public int $year;
 
-    /** Which modal is open: null | 'unit' | 'tenancy' | 'regulate' | 'payment'. */
+    /** Which modal is open: null | 'unit' | 'tenancy' | 'historic' | 'generate' | 'payment'. */
     public ?string $modal = null;
 
     // Edit unit + current tenant/lease
@@ -26,9 +26,19 @@ new #[Layout('layouts::app')] class extends Component
     // New tenancy
     public string $n_tenant = '', $n_email = '', $n_phone = '', $n_rent = '', $n_deposit = '', $n_starts = '';
 
-    // Register payment
+    // Historic (previous) tenancy — records an already-ended lease, e.g. the
+    // tenant who lived here before the current one moved in.
+    public string $h_tenant = '', $h_email = '', $h_phone = '', $h_rent = '', $h_deposit = '', $h_starts = '', $h_ends = '';
+    public bool $h_generate = true;
+
+    // Generate a year's rent (at a rate that can differ per year)
+    public string $g_rent = '';
+    public bool $g_paid = false;
+
+    // Edit a single month (amount + received date)
     public ?int $payIncomeId = null;
     public string $payDate = '';
+    public string $payAmount = '';
 
     public function mount(Unit $unit): void
     {
@@ -107,12 +117,30 @@ new #[Layout('layouts::app')] class extends Component
     }
 
     // ── Rent ledger / payments ──
+    public function openGenerate(): void
+    {
+        // Smart default rent for this year: the most recent amount already
+        // recorded in or before this year, else the current lease's rate. This
+        // lets a long-running tenant's rent differ per year without ceremony.
+        $last = Income::where('unit_id', $this->unit->id)
+            ->where('period_year', '<=', $this->year)
+            ->orderByDesc('period_year')->orderByDesc('period_month')->first();
+        $default = $last?->amount_ore ?? $this->unit->currentTenancy?->monthly_rent_ore;
+        $this->g_rent = $default ? $default->format(symbol: false) : '';
+        // A fully past year was presumably paid; the current year usually isn't.
+        $this->g_paid = $this->year < (int) now()->year;
+        $this->resetValidation();
+        $this->modal = 'generate';
+    }
+
     public function generateRent(): void
     {
         $t = $this->unit->currentTenancy;
         if (! $t) {
             return;
         }
+        $this->validate(['g_rent' => ['required', 'string']], ['g_rent.required' => 'Fyll inn månedsleie for året.']);
+        $rentOre = Money::fromKronerString($this->g_rent)->ore;
 
         $now = now();
         for ($m = 1; $m <= 12; $m++) {
@@ -132,26 +160,38 @@ new #[Layout('layouts::app')] class extends Component
                 'tenancy_id' => $t->id,
                 'period_year' => $this->year,
                 'period_month' => $m,
-                'amount_ore' => $t->monthly_rent_ore->ore,
-                'received_on' => null,
+                'amount_ore' => $rentOre,
+                'received_on' => $this->g_paid ? $monthStart->toDateString() : null,
                 'income_year' => $this->year,
             ]);
         }
+        $this->modal = null;
     }
 
-    public function openPayment(int $incomeId): void
+    public function openMonth(int $incomeId): void
     {
+        $inc = Income::where('unit_id', $this->unit->id)->whereKey($incomeId)->first();
+        if (! $inc) {
+            return;
+        }
         $this->payIncomeId = $incomeId;
-        $this->payDate = now()->format('Y-m-d');
+        $this->payAmount = $inc->amount_ore->format(symbol: false);
+        $this->payDate = $inc->received_on?->format('Y-m-d') ?? now()->format('Y-m-d');
         $this->resetValidation();
         $this->modal = 'payment';
     }
 
-    public function confirmPayment(): void
+    public function confirmMonth(): void
     {
-        $this->validate(['payDate' => ['required', 'date']]);
-        Income::where('unit_id', $this->unit->id)->whereKey($this->payIncomeId)
-            ->update(['received_on' => $this->payDate]);
+        $this->validate([
+            'payAmount' => ['required', 'string'],
+            'payDate' => ['nullable', 'date'],
+        ], ['payAmount.required' => 'Fyll inn beløp.']);
+
+        Income::where('unit_id', $this->unit->id)->whereKey($this->payIncomeId)->update([
+            'amount_ore' => Money::fromKronerString($this->payAmount)->ore,
+            'received_on' => $this->payDate ?: null,
+        ]);
         $this->modal = null;
     }
 
@@ -214,6 +254,107 @@ new #[Layout('layouts::app')] class extends Component
 
         $this->reloadUnit();
         $this->modal = null;
+    }
+
+    // ── Historic (previous) tenancy ──
+    public function openHistoricTenancy(): void
+    {
+        $this->reset(['h_tenant', 'h_email', 'h_phone', 'h_rent', 'h_deposit', 'h_starts', 'h_ends']);
+        $this->h_generate = true;
+        $this->resetValidation();
+        $this->modal = 'historic';
+    }
+
+    public function saveHistoricTenancy(): void
+    {
+        $this->validate([
+            'h_tenant' => ['required', 'string', 'max:255'],
+            'h_email' => ['nullable', 'email', 'max:255'],
+            'h_phone' => ['nullable', 'string', 'max:40'],
+            'h_rent' => ['required', 'string'],
+            'h_deposit' => ['nullable', 'string'],
+            'h_starts' => ['required', 'date'],
+            'h_ends' => ['required', 'date', 'after_or_equal:h_starts'],
+        ], [
+            'h_tenant.required' => 'Fyll inn leietakers navn.',
+            'h_rent.required' => 'Fyll inn månedsleie.',
+            'h_starts.required' => 'Fyll inn startdato.',
+            'h_ends.required' => 'Fyll inn sluttdato.',
+            'h_ends.after_or_equal' => 'Sluttdato må være etter startdato.',
+        ]);
+
+        $rentOre = Money::fromKronerString($this->h_rent)->ore;
+
+        $tenant = Tenant::create([
+            'name' => $this->h_tenant,
+            'email' => $this->h_email ?: null,
+            'phone' => $this->h_phone ?: null,
+        ]);
+        $tenancy = Tenancy::create([
+            'unit_id' => $this->unit->id,
+            'tenant_id' => $tenant->id,
+            'starts_on' => $this->h_starts,
+            'ends_on' => $this->h_ends,
+            'monthly_rent_ore' => $rentOre,
+            'deposit_ore' => $this->h_deposit !== '' ? Money::fromKronerString($this->h_deposit)->ore : 0,
+        ]);
+
+        // Backfill the rent that was received each month of the period, so the
+        // historic income is counted in the ledger and the årsoppgjør.
+        if ($this->h_generate) {
+            $cursor = Carbon::parse($this->h_starts)->startOfMonth();
+            $end = Carbon::parse($this->h_ends)->startOfMonth();
+            while ($cursor->lte($end)) {
+                $exists = Income::where('unit_id', $this->unit->id)
+                    ->where('period_year', $cursor->year)
+                    ->where('period_month', $cursor->month)->exists();
+                if (! $exists) {
+                    Income::create([
+                        'unit_id' => $this->unit->id,
+                        'tenancy_id' => $tenancy->id,
+                        'period_year' => $cursor->year,
+                        'period_month' => $cursor->month,
+                        'amount_ore' => $rentOre,
+                        'received_on' => $cursor->copy()->toDateString(),
+                        'income_year' => $cursor->year,
+                    ]);
+                }
+                $cursor->addMonth();
+            }
+        }
+
+        // Jump the view to the period's start year so the entry can be verified.
+        $this->year = min((int) Carbon::parse($this->h_starts)->year, (int) now()->year);
+        $this->reloadUnit();
+        $this->modal = null;
+    }
+
+    public function deleteTenancy(int $tenancyId): void
+    {
+        $t = $this->unit->tenancies()->whereKey($tenancyId)->first();
+        if (! $t) {
+            return;
+        }
+        // Only past tenancies are deletable here — never the current lease.
+        if ($this->unit->currentTenancy && $t->id === $this->unit->currentTenancy->id) {
+            return;
+        }
+        Income::where('unit_id', $this->unit->id)->where('tenancy_id', $t->id)->delete();
+        $t->delete();
+        $this->reloadUnit();
+    }
+
+    // ── Year navigation ──
+    public function prevYear(): void
+    {
+        $this->year--;
+    }
+
+    public function nextYear(): void
+    {
+        if ($this->year < (int) now()->year) {
+            $this->year++;
+        }
     }
 
     public function with(): array
@@ -319,6 +460,15 @@ new #[Layout('layouts::app')] class extends Component
         </div>
     </div>
 
+    <div class="mb-3 flex items-center justify-end gap-2">
+        <span class="text-[13px] text-faint">Regnskapsår</span>
+        <div class="inline-flex items-center rounded-full border border-line-strong bg-surface">
+            <button type="button" wire:click="prevYear" aria-label="Forrige år" class="px-2.5 py-1.5 text-faint transition-colors hover:text-ink">‹</button>
+            <span class="min-w-[3.5ch] text-center font-display text-sm font-semibold tnum">{{ $year }}</span>
+            <button type="button" wire:click="nextYear" @disabled($year >= (int) now()->year) aria-label="Neste år" class="px-2.5 py-1.5 text-faint transition-colors hover:text-ink disabled:opacity-30">›</button>
+        </div>
+    </div>
+
     <div class="grid grid-cols-2 border-y border-line md:grid-cols-4">
         <x-stat class="py-5 md:py-6" label="Månedsleie" :value="$monthlyRent->format()" />
         <x-stat class="py-5 md:border-l md:border-line md:py-6 md:pl-[30px]" label="Inntekt {{ $year }}" :value="$incomeYear->format()" />
@@ -336,7 +486,7 @@ new #[Layout('layouts::app')] class extends Component
                         <span class="text-[12.5px] font-medium text-negative">{{ $outstanding->format() }} utestående</span>
                     @endunless
                     @if ($ledgerHasMissing)
-                        <button type="button" wire:click="generateRent" class="text-[13px] font-semibold text-terra hover:opacity-80">+ Generér husleie</button>
+                        <button type="button" wire:click="openGenerate" class="text-[13px] font-semibold text-terra hover:opacity-80">+ Generér husleie</button>
                     @endif
                 </div>
             </div>
@@ -372,10 +522,13 @@ new #[Layout('layouts::app')] class extends Component
                     </div>
                     <div class="flex items-center gap-3">
                         <div class="text-[15px] font-semibold {{ $row['status'] === 'paid' ? 'text-positive' : 'text-ink' }}">{{ $row['amount']?->format() ?? '—' }}</div>
-                        @if ($row['income'] && $row['status'] !== 'paid')
-                            <button type="button" wire:click="openPayment({{ $row['income']->id }})" class="rounded-[8px] border border-line-strong px-2.5 py-1 text-[12px] font-semibold text-terra transition-colors hover:border-terra">Registrer</button>
-                        @elseif ($row['status'] === 'paid')
+                        @if ($row['income'] && $row['status'] === 'paid')
+                            <button type="button" wire:click="openMonth({{ $row['income']->id }})" title="Endre beløp / dato" class="text-faint transition-colors hover:text-terra">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                            </button>
                             <button type="button" wire:click="markUnpaid({{ $row['income']->id }})" title="Angre betaling" class="text-[12px] text-faint hover:text-negative">Angre</button>
+                        @elseif ($row['income'])
+                            <button type="button" wire:click="openMonth({{ $row['income']->id }})" class="rounded-[8px] border border-line-strong px-2.5 py-1 text-[12px] font-semibold text-terra transition-colors hover:border-terra">Registrer</button>
                         @endif
                     </div>
                 </div>
@@ -497,9 +650,12 @@ new #[Layout('layouts::app')] class extends Component
                 </x-card>
             </div>
 
-            @if ($pastTenancies->isNotEmpty())
-                <div>
-                    <div class="mb-2 text-[13px] uppercase tracking-[0.08em] text-faint">Tidligere leieforhold</div>
+            <div>
+                <div class="mb-2 flex items-center justify-between">
+                    <div class="text-[13px] uppercase tracking-[0.08em] text-faint">Tidligere leieforhold</div>
+                    <button type="button" wire:click="openHistoricTenancy" class="text-[13px] font-semibold text-terra transition-opacity hover:opacity-80">+ Legg til</button>
+                </div>
+                @if ($pastTenancies->isNotEmpty())
                     <x-card class="px-[22px] py-1">
                         @foreach ($pastTenancies as $pt)
                             <div class="flex items-center justify-between {{ ! $loop->last ? 'border-b border-line' : '' }} py-3 text-sm">
@@ -507,12 +663,21 @@ new #[Layout('layouts::app')] class extends Component
                                     <div class="font-medium">{{ $pt->tenant?->name ?? 'Ukjent' }}</div>
                                     <div class="mt-0.5 text-xs text-faint">{{ $pt->starts_on->locale('nb')->isoFormat('MMM YYYY') }} – {{ $pt->ends_on ? $pt->ends_on->locale('nb')->isoFormat('MMM YYYY') : '—' }}</div>
                                 </div>
-                                <span class="text-[13px] text-muted">{{ $pt->monthly_rent_ore->format() }}</span>
+                                <div class="flex items-center gap-3.5">
+                                    <span class="text-[13px] text-muted">{{ $pt->monthly_rent_ore->format() }}</span>
+                                    <button type="button" wire:click="deleteTenancy({{ $pt->id }})"
+                                        wire:confirm="Slette leieforholdet til {{ $pt->tenant?->name }} og tilhørende husleie? Kan ikke angres."
+                                        title="Slett leieforhold" class="text-faint transition-colors hover:text-negative">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                                    </button>
+                                </div>
                             </div>
                         @endforeach
                     </x-card>
-                </div>
-            @endif
+                @else
+                    <p class="text-[13px] leading-relaxed text-faint">Ingen tidligere leieforhold registrert. Legg til historikk om noen har leid enheten før.</p>
+                @endif
+            </div>
         </div>
     </div>
 
@@ -601,21 +766,93 @@ new #[Layout('layouts::app')] class extends Component
                         </div>
                     </form>
 
-                {{-- Register payment --}}
-                @elseif ($modal === 'payment')
+                {{-- Historic (previous) tenancy --}}
+                @elseif ($modal === 'historic')
                     <div class="flex items-center justify-between border-b border-line px-6 py-4">
-                        <div class="text-lg font-semibold">Registrer innbetaling</div>
+                        <div class="text-lg font-semibold">Legg til tidligere leieforhold</div>
                         <button type="button" wire:click="closeModal" class="text-xl leading-none text-faint hover:text-ink" aria-label="Lukk">&times;</button>
                     </div>
-                    <form wire:submit="confirmPayment" class="flex flex-col">
-                        <div class="px-6 py-5">
-                            <label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Betalt dato</label>
-                            <input wire:model="payDate" type="date" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
-                            @error('payDate') <p class="mt-1 text-[13px] text-negative">{{ $message }}</p> @enderror
+                    <form wire:submit="saveHistoricTenancy" class="flex min-h-0 flex-1 flex-col">
+                        <div class="grid grid-cols-1 gap-4 overflow-y-auto overflow-x-hidden px-6 py-5 sm:grid-cols-2">
+                            <p class="sm:col-span-2 rounded-lg bg-panel px-3 py-2 text-[12.5px] text-muted">Registrer et leieforhold som allerede er avsluttet. Påvirker ikke det nåværende leieforholdet.</p>
+                            <div class="sm:col-span-2"><label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Leietaker</label>
+                                <input wire:model="h_tenant" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                                @error('h_tenant') <p class="mt-1 text-[13px] text-negative">{{ $message }}</p> @enderror</div>
+                            <div><label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">E-post</label>
+                                <input wire:model="h_email" type="email" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                                @error('h_email') <p class="mt-1 text-[13px] text-negative">{{ $message }}</p> @enderror</div>
+                            <div><label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Telefon</label>
+                                <input wire:model="h_phone" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra"></div>
+                            <div><label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Månedsleie (kr)</label>
+                                <input wire:model="h_rent" inputmode="numeric" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                                @error('h_rent') <p class="mt-1 text-[13px] text-negative">{{ $message }}</p> @enderror</div>
+                            <div><label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Depositum (kr)</label>
+                                <input wire:model="h_deposit" inputmode="numeric" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra"></div>
+                            <div><label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Startdato</label>
+                                <input wire:model="h_starts" type="date" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                                @error('h_starts') <p class="mt-1 text-[13px] text-negative">{{ $message }}</p> @enderror</div>
+                            <div><label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Sluttdato</label>
+                                <input wire:model="h_ends" type="date" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                                @error('h_ends') <p class="mt-1 text-[13px] text-negative">{{ $message }}</p> @enderror</div>
+                            <label class="sm:col-span-2 flex items-start gap-3 rounded-[10px] border border-line px-3.5 py-3">
+                                <input type="checkbox" wire:model="h_generate" class="mt-0.5 size-4 shrink-0 accent-terra">
+                                <span class="text-[13px]">
+                                    <span class="font-semibold text-ink-soft">Registrer betalt husleie for perioden</span>
+                                    <span class="mt-0.5 block text-faint">Oppretter mottatt husleie for hver måned i perioden – tas med i inntekt og årsoppgjør.</span>
+                                </span>
+                            </label>
                         </div>
                         <div class="flex items-center justify-end gap-2.5 border-t border-line px-6 py-4">
                             <button type="button" wire:click="closeModal" class="rounded-[10px] border border-line-strong bg-surface px-4 py-2.5 text-sm font-semibold hover:border-faint">Avbryt</button>
-                            <button type="submit" class="rounded-[10px] bg-positive px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90">Marker som betalt</button>
+                            <button type="submit" class="rounded-[10px] bg-terra px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90">Legg til leieforhold</button>
+                        </div>
+                    </form>
+
+                {{-- Generate a year's rent at a chosen rate --}}
+                @elseif ($modal === 'generate')
+                    <div class="flex items-center justify-between border-b border-line px-6 py-4">
+                        <div class="text-lg font-semibold">Generér husleie for {{ $year }}</div>
+                        <button type="button" wire:click="closeModal" class="text-xl leading-none text-faint hover:text-ink" aria-label="Lukk">&times;</button>
+                    </div>
+                    <form wire:submit="generateRent" class="flex flex-col">
+                        <div class="px-6 py-5">
+                            <p class="mb-4 rounded-lg bg-panel px-3 py-2 text-[12.5px] text-muted">Oppretter husleie for månedene enheten var utleid i {{ $year }}. Juster månedsleien om den var en annen dette året – rentehistorikk lagres per måned.</p>
+                            <label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Månedsleie i {{ $year }} (kr)</label>
+                            <input wire:model="g_rent" inputmode="numeric" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                            @error('g_rent') <p class="mt-1 text-[13px] text-negative">{{ $message }}</p> @enderror
+                            <label class="mt-4 flex items-start gap-3 rounded-[10px] border border-line px-3.5 py-3">
+                                <input type="checkbox" wire:model="g_paid" class="mt-0.5 size-4 shrink-0 accent-terra">
+                                <span class="text-[13px]">
+                                    <span class="font-semibold text-ink-soft">Marker som betalt</span>
+                                    <span class="mt-0.5 block text-faint">Registrer husleien som mottatt hver måned. La stå av om du vil føre innbetalinger selv.</span>
+                                </span>
+                            </label>
+                        </div>
+                        <div class="flex items-center justify-end gap-2.5 border-t border-line px-6 py-4">
+                            <button type="button" wire:click="closeModal" class="rounded-[10px] border border-line-strong bg-surface px-4 py-2.5 text-sm font-semibold hover:border-faint">Avbryt</button>
+                            <button type="submit" class="rounded-[10px] bg-terra px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90">Generér husleie</button>
+                        </div>
+                    </form>
+
+                {{-- Edit a single month (amount + received date) --}}
+                @elseif ($modal === 'payment')
+                    <div class="flex items-center justify-between border-b border-line px-6 py-4">
+                        <div class="text-lg font-semibold">Husleie for måneden</div>
+                        <button type="button" wire:click="closeModal" class="text-xl leading-none text-faint hover:text-ink" aria-label="Lukk">&times;</button>
+                    </div>
+                    <form wire:submit="confirmMonth" class="flex flex-col">
+                        <div class="grid grid-cols-1 gap-4 px-6 py-5 sm:grid-cols-2">
+                            <div><label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Beløp (kr)</label>
+                                <input wire:model="payAmount" inputmode="numeric" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                                @error('payAmount') <p class="mt-1 text-[13px] text-negative">{{ $message }}</p> @enderror</div>
+                            <div><label class="mb-1.5 block text-[13px] font-semibold text-ink-soft">Betalt dato</label>
+                                <input wire:model="payDate" type="date" class="w-full rounded-[10px] border border-line-strong bg-surface px-3.5 py-2.5 text-[15px] outline-none focus:border-terra">
+                                @error('payDate') <p class="mt-1 text-[13px] text-negative">{{ $message }}</p> @enderror
+                                <p class="mt-1 text-[12px] text-faint">Tom = utestående.</p></div>
+                        </div>
+                        <div class="flex items-center justify-end gap-2.5 border-t border-line px-6 py-4">
+                            <button type="button" wire:click="closeModal" class="rounded-[10px] border border-line-strong bg-surface px-4 py-2.5 text-sm font-semibold hover:border-faint">Avbryt</button>
+                            <button type="submit" class="rounded-[10px] bg-positive px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90">Lagre</button>
                         </div>
                     </form>
                 @endif
